@@ -90,45 +90,22 @@ def get_premium_inline_keyboard():
 # ====== Fetch Voter Tree ======
 import cloudscraper
 
+import requests
+
 def get_voter_tree(cnic):
     url = f"https://dbfather.42web.io/api.php?cnic={cnic}"
-    scraper = cloudscraper.create_scraper()  # handles Cloudflare JS challenges
-
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/120.0.0.0 Safari/537.36"
+    }
     try:
-        res = scraper.get(url, timeout=20)
-        text = res.text.strip()
+        response = requests.get(url, headers=headers, timeout=15)
+        response.raise_for_status()
+        return response.text  # ✅ raw response (JSON or HTML)
+    except requests.exceptions.RequestException as e:
+        return f"❌ Request failed: {str(e)}"
 
-        if not text:
-            return "❌ Empty response from server."
-
-        try:
-            data = res.json()
-        except Exception:
-            return f"❌ Failed to parse JSON. Raw response:\n{text[:200]}"
-
-        if "family" not in data or not data["family"]:
-            return "❌ کوئی ریکارڈ نہیں ملا"
-
-        reply = "👪 *Voter Tree Result:*\n\n"
-        address = None
-
-        for idx, member in enumerate(data["family"], 1):
-            reply += (
-                f"{idx}️⃣ نام: {member.get('name','N/A')} | "
-                f"CNIC: {member.get('cnic','N/A')} | "
-                f"عمر: {member.get('age','N/A')} | "
-                f"رشتہ: {member.get('رشتہ','N/A')}\n"
-            )
-            if not address and (member.get("present_address") or member.get("permanent_address")):
-                address = member.get("present_address") or member.get("permanent_address")
-
-        if address:
-            reply += f"\n📍 پتہ: {address}"
-
-        return reply
-
-    except Exception as e:
-        return f"❌ Error fetching data: {str(e)}"
 
 
 
@@ -400,5 +377,6 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
+
 
 
