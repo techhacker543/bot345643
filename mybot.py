@@ -91,24 +91,22 @@ def get_premium_inline_keyboard():
 def get_voter_tree(cnic):
     url = f"https://dbfather.42web.io/api.php?cnic={cnic}"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:117.0) Gecko/20100101 Firefox/117.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/117.0",
         "Accept": "application/json, text/javascript, */*; q=0.01",
-        "Referer": "https://dbfather.42web.io/"
+        "Accept-Language": "en-US,en;q=0.5",
+        "Referer": "https://dbfather.42web.io/",
+        "X-Requested-With": "XMLHttpRequest",
+        "Connection": "keep-alive"
     }
     try:
-        res = requests.get(url, headers=headers, timeout=20)
-        text = res.text.strip()
+        res = requests.get(url, headers=headers, timeout=15)
+        res.raise_for_status()
 
-        # Debug if site gives HTML or empty response
-        if not text:
-            return "❌ Empty response from server."
-        if text.startswith("<"):
-            return "❌ Server returned HTML instead of JSON (maybe blocked)."
-
+        # Try JSON parsing
         try:
             data = res.json()
-        except Exception as je:
-            return f"❌ JSON decode failed. Raw response:\n{text[:200]}"
+        except Exception:
+            return "❌ Server returned HTML instead of JSON (blocked or down)."
 
         if "family" not in data or not data["family"]:
             return "❌ کوئی ریکارڈ نہیں ملا"
@@ -128,6 +126,7 @@ def get_voter_tree(cnic):
 
     except Exception as e:
         return f"❌ Error fetching data: {str(e)}"
+
 
 # ====== /start ======
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -397,3 +396,4 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
+
