@@ -14,6 +14,7 @@ from telegram.ext import (
     ContextTypes,
     CallbackQueryHandler,
 )
+import cloudscraper
 import json
 import os
 import openpyxl
@@ -90,20 +91,9 @@ def get_premium_inline_keyboard():
 # ====== Fetch Voter Tree ======
 def get_voter_tree(cnic):
     url = f"https://dbfather.42web.io/api.php?cnic={cnic}"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/117.0",
-        "Accept": "application/json, text/javascript, */*; q=0.01",
-        "Referer": "https://dbfather.42web.io/",
-        "X-Requested-With": "XMLHttpRequest"
-    }
+    scraper = cloudscraper.create_scraper()
     try:
-        res = requests.get(url, headers=headers, timeout=15)
-        res.raise_for_status()
-
-        # Sometimes server still gives HTML
-        if res.text.strip().startswith("<"):
-            return "❌ Server returned HTML instead of JSON (blocked)."
-
+        res = scraper.get(url, timeout=15)
         data = res.json()
 
         if "family" not in data or not data["family"]:
@@ -374,5 +364,6 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
+
 
 
