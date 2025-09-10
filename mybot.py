@@ -88,27 +88,13 @@ def get_premium_inline_keyboard():
     return InlineKeyboardMarkup(keyboard)
 
 # ====== Fetch Voter Tree ======
-import cloudscraper
+
 
 import requests
 
-import requests
 
 def get_voter_tree(cnic: str) -> str:
-    url = f"https://dbfather.42web.io/api.php?cnic={cnic}"
-    try:
-        response = requests.get(url, timeout=10)
-
-        # If server responded in HTML instead of JSON, check for "data not found"
-        if "data not found" in response.text.lower():
-            return "❌ Voter tree not available for this CNIC."
-
-        # Otherwise, return a formatted link
-        return f"✅ Click here to see family tree and enable prettier:\nhttps://dbfather.42web.io/api.php?cnic={cnic}&i=1"
-
-    except Exception as e:
-        return f"⚠️ Error fetching data: {e}"
-
+    return f"🟢 Click on this link to see voter tree:\nhttps://dbfather.42web.io/api.php?cnic={cnic}&i=1"
 
 
 
@@ -385,6 +371,7 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
+
 
 
 
