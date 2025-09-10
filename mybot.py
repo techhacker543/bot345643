@@ -90,15 +90,25 @@ def get_premium_inline_keyboard():
 # ====== Fetch Voter Tree ======
 import cloudscraper
 
+import requests
+
 def get_voter_tree(cnic):
     url = f"https://dbfather.42web.io/api.php?cnic={cnic}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/120.0.0.0 Safari/537.36"
+    }
+    cookies = {
+        "__test": "abe2b3167e1ceb9636b2d8494a461f34"  # ✅ your cookie
+    }
     try:
-        scraper = cloudscraper.create_scraper()  # 🔥 handles JS/cookies
-        response = scraper.get(url, timeout=20)
+        response = requests.get(url, headers=headers, cookies=cookies, timeout=15)
         response.raise_for_status()
         return response.text  # should now give JSON instead of HTML
     except Exception as e:
         return f"❌ Error: {str(e)}"
+
 
 
 
@@ -374,6 +384,7 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
+
 
 
 
