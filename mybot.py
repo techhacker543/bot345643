@@ -88,34 +88,23 @@ def get_premium_inline_keyboard():
     return InlineKeyboardMarkup(keyboard)
 
 # ====== Fetch Voter Tree ======
+import cloudscraper
+
 def get_voter_tree(cnic):
     url = f"https://dbfather.42web.io/api.php?cnic={cnic}"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:117.0) Gecko/20100101 Firefox/117.0",
-        "Accept": "application/json, text/javascript, */*; q=0.01",
-        "Referer": "https://dbfather.42web.io/"
-    }
+    scraper = cloudscraper.create_scraper()  # handles Cloudflare JS challenges
+
     try:
-        res = requests.get(url, headers=headers, timeout=20)
+        res = scraper.get(url, timeout=20)
         text = res.text.strip()
 
         if not text:
             return "❌ Empty response from server."
 
-        # Try parsing JSON even if HTML tags are present
         try:
-            data = json.loads(text)
-        except:
-            # Sometimes JSON is inside <pre> or <body>
-            import re
-            json_match = re.search(r'\{.*\}', text, re.S)
-            if json_match:
-                try:
-                    data = json.loads(json_match.group())
-                except:
-                    return f"❌ Failed to decode JSON. Raw response:\n{text[:200]}"
-            else:
-                return f"❌ Unexpected response (not JSON). Raw:\n{text[:200]}"
+            data = res.json()
+        except Exception:
+            return f"❌ Failed to parse JSON. Raw response:\n{text[:200]}"
 
         if "family" not in data or not data["family"]:
             return "❌ کوئی ریکارڈ نہیں ملا"
@@ -140,6 +129,7 @@ def get_voter_tree(cnic):
 
     except Exception as e:
         return f"❌ Error fetching data: {str(e)}"
+
 
 
 # ====== /start ======
@@ -410,4 +400,5 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
+
 
