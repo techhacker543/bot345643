@@ -93,20 +93,18 @@ def get_voter_tree(cnic):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/117.0",
         "Accept": "application/json, text/javascript, */*; q=0.01",
-        "Accept-Language": "en-US,en;q=0.5",
         "Referer": "https://dbfather.42web.io/",
-        "X-Requested-With": "XMLHttpRequest",
-        "Connection": "keep-alive"
+        "X-Requested-With": "XMLHttpRequest"
     }
     try:
         res = requests.get(url, headers=headers, timeout=15)
         res.raise_for_status()
 
-        # Try JSON parsing
-        try:
-            data = res.json()
-        except Exception:
-            return "❌ Server returned HTML instead of JSON (blocked or down)."
+        # Sometimes server still gives HTML
+        if res.text.strip().startswith("<"):
+            return "❌ Server returned HTML instead of JSON (blocked)."
+
+        data = res.json()
 
         if "family" not in data or not data["family"]:
             return "❌ کوئی ریکارڈ نہیں ملا"
@@ -126,26 +124,6 @@ def get_voter_tree(cnic):
 
     except Exception as e:
         return f"❌ Error fetching data: {str(e)}"
-
-
-# ====== /start ======
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    user_id = str(user.id)
-    username = user.username or user.first_name or "Unknown"
-
-    if user_id not in users_data:
-        users_data[user_id] = {"username": username, "search_count": 0, "searches": []}
-        save_stats()
-    else:
-        users_data[user_id]["username"] = username
-        save_stats()
-
-    user_state.pop(update.effective_chat.id, None)
-    await update.message.reply_text(
-        "👋 Welcome! Please choose an option:",
-        reply_markup=get_main_inline_keyboard()
-    )
 
 # ====== Callback Handler ======
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -396,4 +374,5 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
+
 
