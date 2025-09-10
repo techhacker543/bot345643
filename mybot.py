@@ -99,16 +99,23 @@ def get_voter_tree(cnic):
         res = requests.get(url, headers=headers, timeout=20)
         text = res.text.strip()
 
-        # Debug if site gives HTML or empty response
         if not text:
             return "❌ Empty response from server."
-        if text.startswith("<"):
-            return "❌ Server returned HTML instead of JSON (maybe blocked)."
 
+        # Try parsing JSON even if HTML tags are present
         try:
-            data = res.json()
-        except Exception as je:
-            return f"❌ JSON decode failed. Raw response:\n{text[:200]}"
+            data = json.loads(text)
+        except:
+            # Sometimes JSON is inside <pre> or <body>
+            import re
+            json_match = re.search(r'\{.*\}', text, re.S)
+            if json_match:
+                try:
+                    data = json.loads(json_match.group())
+                except:
+                    return f"❌ Failed to decode JSON. Raw response:\n{text[:200]}"
+            else:
+                return f"❌ Unexpected response (not JSON). Raw:\n{text[:200]}"
 
         if "family" not in data or not data["family"]:
             return "❌ کوئی ریکارڈ نہیں ملا"
@@ -117,7 +124,12 @@ def get_voter_tree(cnic):
         address = None
 
         for idx, member in enumerate(data["family"], 1):
-            reply += f"{idx}️⃣ نام: {member.get('name','N/A')} | CNIC: {member.get('cnic','N/A')} | عمر: {member.get('age','N/A')} | رشتہ: {member.get('رشتہ','N/A')}\n"
+            reply += (
+                f"{idx}️⃣ نام: {member.get('name','N/A')} | "
+                f"CNIC: {member.get('cnic','N/A')} | "
+                f"عمر: {member.get('age','N/A')} | "
+                f"رشتہ: {member.get('رشتہ','N/A')}\n"
+            )
             if not address and (member.get("present_address") or member.get("permanent_address")):
                 address = member.get("present_address") or member.get("permanent_address")
 
@@ -128,6 +140,7 @@ def get_voter_tree(cnic):
 
     except Exception as e:
         return f"❌ Error fetching data: {str(e)}"
+
 
 # ====== /start ======
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -397,3 +410,4 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
+
