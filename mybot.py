@@ -14,7 +14,6 @@ from telegram.ext import (
     ContextTypes,
     CallbackQueryHandler,
 )
-import cloudscraper
 import json
 import os
 import openpyxl
@@ -91,10 +90,25 @@ def get_premium_inline_keyboard():
 # ====== Fetch Voter Tree ======
 def get_voter_tree(cnic):
     url = f"https://dbfather.42web.io/api.php?cnic={cnic}"
-    scraper = cloudscraper.create_scraper()
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:117.0) Gecko/20100101 Firefox/117.0",
+        "Accept": "application/json, text/javascript, */*; q=0.01",
+        "Referer": "https://dbfather.42web.io/"
+    }
     try:
-        res = scraper.get(url, timeout=15)
-        data = res.json()
+        res = requests.get(url, headers=headers, timeout=20)
+        text = res.text.strip()
+
+        # Debug if site gives HTML or empty response
+        if not text:
+            return "❌ Empty response from server."
+        if text.startswith("<"):
+            return "❌ Server returned HTML instead of JSON (maybe blocked)."
+
+        try:
+            data = res.json()
+        except Exception as je:
+            return f"❌ JSON decode failed. Raw response:\n{text[:200]}"
 
         if "family" not in data or not data["family"]:
             return "❌ کوئی ریکارڈ نہیں ملا"
@@ -114,6 +128,25 @@ def get_voter_tree(cnic):
 
     except Exception as e:
         return f"❌ Error fetching data: {str(e)}"
+
+# ====== /start ======
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    user_id = str(user.id)
+    username = user.username or user.first_name or "Unknown"
+
+    if user_id not in users_data:
+        users_data[user_id] = {"username": username, "search_count": 0, "searches": []}
+        save_stats()
+    else:
+        users_data[user_id]["username"] = username
+        save_stats()
+
+    user_state.pop(update.effective_chat.id, None)
+    await update.message.reply_text(
+        "👋 Welcome! Please choose an option:",
+        reply_markup=get_main_inline_keyboard()
+    )
 
 # ====== Callback Handler ======
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -364,6 +397,3 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
-
-
-
