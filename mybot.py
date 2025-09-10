@@ -22,7 +22,7 @@ from openpyxl.styles import Alignment, Font, Border, Side, PatternFill
 import tempfile
 
 BOT_TOKEN = "7757762485:AAHY5BrJ58YpdW50lAwRUsTwahtRDrd1RyA"
-ADMIN_ID = 6550324099 
+ADMIN_ID = 6550324099
 
 user_state = {}
 
@@ -90,10 +90,25 @@ def get_premium_inline_keyboard():
 # ====== Fetch Voter Tree ======
 def get_voter_tree(cnic):
     url = f"https://dbfather.42web.io/api.php?cnic={cnic}"
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:117.0) Gecko/20100101 Firefox/117.0",
+        "Accept": "application/json, text/javascript, */*; q=0.01",
+        "Referer": "https://dbfather.42web.io/"
+    }
     try:
-        res = requests.get(url, headers=headers, verify=False, timeout=15)
-        data = res.json()
+        res = requests.get(url, headers=headers, timeout=20)
+        text = res.text.strip()
+
+        # Debug if site gives HTML or empty response
+        if not text:
+            return "❌ Empty response from server."
+        if text.startswith("<"):
+            return "❌ Server returned HTML instead of JSON (maybe blocked)."
+
+        try:
+            data = res.json()
+        except Exception as je:
+            return f"❌ JSON decode failed. Raw response:\n{text[:200]}"
 
         if "family" not in data or not data["family"]:
             return "❌ کوئی ریکارڈ نہیں ملا"
