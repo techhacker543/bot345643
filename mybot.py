@@ -92,22 +92,23 @@ import cloudscraper
 
 import requests
 
-def get_voter_tree(cnic):
+import requests
+
+def get_voter_tree(cnic: str) -> str:
     url = f"https://dbfather.42web.io/api.php?cnic={cnic}"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                      "AppleWebKit/537.36 (KHTML, like Gecko) "
-                      "Chrome/120.0.0.0 Safari/537.36"
-    }
-    cookies = {
-        "__test": "abe2b3167e1ceb9636b2d8494a461f34"  # ✅ your cookie
-    }
     try:
-        response = requests.get(url, headers=headers, cookies=cookies, timeout=15)
-        response.raise_for_status()
-        return response.text  # should now give JSON instead of HTML
+        response = requests.get(url, timeout=10)
+
+        # If server responded in HTML instead of JSON, check for "data not found"
+        if "data not found" in response.text.lower():
+            return "❌ Voter tree not available for this CNIC."
+
+        # Otherwise, return a formatted link
+        return f"✅ Click here to see family tree and enable prettier:\nhttps://dbfather.42web.io/api.php?cnic={cnic}&i=1"
+
     except Exception as e:
-        return f"❌ Error: {str(e)}"
+        return f"⚠️ Error fetching data: {e}"
+
 
 
 
@@ -384,6 +385,7 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
+
 
 
 
