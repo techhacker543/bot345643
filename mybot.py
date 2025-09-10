@@ -82,6 +82,7 @@ def get_premium_inline_keyboard():
         ],
         [
             InlineKeyboardButton("🆔 CNIC Detail", callback_data="premium_cnic"),
+            InlineKeyboardButton("🌳 Voter Tree", callback_data="premium_voter"),
         ],
         [InlineKeyboardButton("⬅ Back", callback_data="back_main")]
     ]
@@ -128,7 +129,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_state[chat_id] = ("free", "cnic")
         await query.message.reply_text("🆔 Please enter the CNIC number (13 digits):", reply_markup=ReplyKeyboardRemove())
 
-    # Premium Search options (blocked)
+    # Premium Search options
+    elif query.data == "premium_voter":
+        user_state[chat_id] = ("premium", "voter")
+        await query.message.reply_text("🌳 Please enter the CNIC number (13 digits) for Voter Tree:", reply_markup=ReplyKeyboardRemove())
+
     elif query.data.startswith("premium_"):
         await query.message.reply_text("❌ You are not a premium member.")
     else:
@@ -208,7 +213,51 @@ async def menu_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"❌ Error: {e}")
             await send_developer_info(update)
 
-    # ===== Premium Search (blocked) =====
+    # ===== Premium Voter Tree =====
+    elif mode == "premium" and search_type == "voter":
+        if not text.isdigit() or len(text) != 13:
+            await update.message.reply_text("❌ Invalid CNIC. Enter exactly 13 digits.")
+            return
+
+        await update.message.reply_text("🌳 Searching Voter Tree... Please wait.")
+
+        try:
+            url = f"https://dbfather.42web.io/api.php?cnic={text}"
+            response = requests.get(url)
+            data = response.json()
+
+            if "error" in data or "family" not in data:
+                await update.message.reply_text("⚠ No data found for this CNIC.")
+                await send_developer_info(update)
+                return
+
+            family = data["family"]
+            result_text = "👪 Voter Tree Result:\n\n"
+            for idx, member in enumerate(family, start=1):
+                result_text += (
+                    f"{idx}️⃣ Name: {member.get('name','N/A')} | "
+                    f"CNIC: {member.get('cnic','N/A')} | "
+                    f"Age: {member.get('age','N/A')} | "
+                    f"Relation: {member.get('رشتہ','N/A')}\n"
+                )
+
+            # address if available
+            address = ""
+            for member in family:
+                if member.get("present_address") or member.get("permanent_address"):
+                    address = member.get("present_address") or member.get("permanent_address")
+                    break
+            if address:
+                result_text += f"\n📍 Address: {address}"
+
+            await update.message.reply_text(result_text)
+            await send_developer_info(update)
+
+        except Exception as e:
+            await update.message.reply_text(f"❌ Error: {e}")
+            await send_developer_info(update)
+
+    # ===== Other Premium (still blocked) =====
     elif mode == "premium":
         await update.message.reply_text("❌ You are not a premium member.")
         await send_developer_info(update)
