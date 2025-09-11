@@ -98,54 +98,24 @@ def get_premium_inline_keyboard():
 
 
 
+from playwright.sync_api import sync_playwright
 
-import requests
-
-def get_voter_tree(cnic: str):
-    url = f"https://dbfather.42web.io/api.php?cnic={cnic}"
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/122.0 Safari/537.36"
-        ),
-        "Accept": "application/json, text/javascript, */*; q=0.01",
-        "Referer": "https://dbfather.42web.io/",
-        "X-Requested-With": "XMLHttpRequest",
-    }
-
+def get_voter_tree(cnic: str) -> str:
     try:
-        res = requests.get(url, headers=headers, timeout=15)
-        res.raise_for_status()
-        data = res.json()
-
-        if "error" in data:
-            return f"❌ {data['error']}"
-
-        family = data.get("family", [])
-        if not family:
-            return "❌ کوئی ڈیٹا نہیں ملا"
-
-        msg = "👨‍👩‍👧‍👦 خاندانی شجرہ:\n"
-        for i, member in enumerate(family, start=1):
-            msg += (
-                f"\n{i}. {member['name']} "
-                f"(CNIC: {member['cnic']}, عمر: {member['age']}, رشتہ: {member.get('رشتہ','-')})"
-            )
-
-        # address if available
-        for member in family:
-            if member.get("present_address") or member.get("permanent_address"):
-                msg += f"\n\n📍 پتہ: {member.get('present_address') or member.get('permanent_address')}"
-                break
-
-        return msg
-
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+            url = f"https://dbfather.42web.io/api.php?cnic={cnic}&i=1"
+            
+            page.goto(url, timeout=60000)  # wait for page load
+            page.wait_for_timeout(3000)    # give JS time to run
+            
+            content = page.content()  # get full rendered HTML
+            
+            browser.close()
+            return content
     except Exception as e:
         return f"⚠️ Could not fetch data: {e}"
-
-# Test
-print(get_voter_tree("1560281870082"))
 
 
 
@@ -433,6 +403,7 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
+
 
 
 
