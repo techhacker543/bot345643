@@ -100,21 +100,40 @@ def get_voter_tree_browser(cnic: str) -> str:
         page = browser.new_page()
         page.goto(f"https://dbfather.42web.io/api.php?cnic={cnic}&i=1")
 
-        # Wait until the table or error text is rendered
         try:
-            page.wait_for_selector("table", timeout=10000)
-            html_content = page.inner_html("table")
-        except:
+            # Wait for the table to appear (family tree data)
+            page.wait_for_selector("table", timeout=15000)
+
+            rows = page.query_selector_all("table tr")
+            if not rows or len(rows) < 2:
+                return "❌ No family data found."
+
+            family_data = []
+            for row in rows[1:]:  # skip header
+                cols = row.query_selector_all("td")
+                if len(cols) >= 5:
+                    serial = cols[0].inner_text().strip()
+                    name = cols[1].inner_text().strip()
+                    cnic_val = cols[2].inner_text().strip()
+                    age = cols[3].inner_text().strip()
+                    relation = cols[4].inner_text().strip()
+
+                    family_data.append(f"{serial}. {name} – CNIC: {cnic_val} – Age: {age} – Relation: {relation}")
+
+            if not family_data:
+                return "❌ Family tree not found."
+
+            return "✅ Voter Family Tree:\n\n" + "\n".join(family_data)
+
+        except Exception as e:
             try:
+                # If no table, maybe an error message exists
                 error_text = page.inner_text("body")
-                browser.close()
                 return f"❌ {error_text}"
             except:
-                browser.close()
-                return "❌ No data or response."
-
-        browser.close()
-        return f"✅ Voter Tree Data:\n\n{html_content}"
+                return f"❌ Failed to load data. Error: {str(e)}"
+        finally:
+            browser.close()
 
 
 
@@ -397,6 +416,7 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
+
 
 
 
