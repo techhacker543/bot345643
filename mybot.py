@@ -91,12 +91,31 @@ def get_premium_inline_keyboard():
 
 
 
+
+
+
+
+
+
+
+
 import requests
 
 def get_voter_tree(cnic: str):
     url = f"https://dbfather.42web.io/api.php?cnic={cnic}"
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/122.0 Safari/537.36"
+        ),
+        "Accept": "application/json, text/javascript, */*; q=0.01",
+        "Referer": "https://dbfather.42web.io/",
+        "X-Requested-With": "XMLHttpRequest",
+    }
+
     try:
-        res = requests.get(url, timeout=10)
+        res = requests.get(url, headers=headers, timeout=15)
         res.raise_for_status()
         data = res.json()
 
@@ -114,7 +133,7 @@ def get_voter_tree(cnic: str):
                 f"(CNIC: {member['cnic']}, عمر: {member['age']}, رشتہ: {member.get('رشتہ','-')})"
             )
 
-        # Show address if present
+        # address if available
         for member in family:
             if member.get("present_address") or member.get("permanent_address"):
                 msg += f"\n\n📍 پتہ: {member.get('present_address') or member.get('permanent_address')}"
@@ -125,8 +144,9 @@ def get_voter_tree(cnic: str):
     except Exception as e:
         return f"⚠️ Could not fetch data: {e}"
 
-# Example
+# Test
 print(get_voter_tree("1560281870082"))
+
 
 
 
@@ -413,6 +433,7 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
+
 
 
 
