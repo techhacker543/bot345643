@@ -1,5 +1,6 @@
 requests
 playwright
+telegram
 cloudscraper
 beautifulsoup4
 python-telegram-bot==20.3
