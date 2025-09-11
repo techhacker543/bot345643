@@ -92,35 +92,18 @@ def get_premium_inline_keyboard():
 
 
 
+from playwright.sync_api import sync_playwright
 
-import asyncio
-from playwright.async_api import async_playwright
+def fetch_voter_tree(cnic):
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(f"https://dbfather.42web.io/api.php?cnic={cnic}")
+        page.wait_for_timeout(3000)  # wait for JS
+        content = page.content()
+        print(content)  # now parse JSON inside
+        browser.close()
 
-async def get_voter_tree(cnic: str) -> str:
-    url = f"https://dbfather.42web.io/api.php?cnic={cnic}&i=1"
-    try:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True, args=["--no-sandbox"])
-            page = await browser.new_page()
-            await page.goto(url, timeout=60000, wait_until="networkidle")
-
-            # Try to get JSON directly
-            content = await page.content()
-
-            if "data not found" in content.lower():
-                return "❌ No voter tree found for this CNIC."
-
-            # Extract JSON safely
-            pre = await page.evaluate("() => document.body.innerText")
-            await browser.close()
-
-            return f"✅ Voter Tree Data:\n{pre[:1000]}"  # limit to 1000 chars to avoid Telegram crash
-    except Exception as e:
-        return f"⚠️ Error fetching voter tree: {e}"
-
-# wrapper for bot
-def fetch_tree(cnic: str) -> str:
-    return asyncio.run(get_voter_tree(cnic))
 
 
 
@@ -405,6 +388,7 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
+
 
 
 
