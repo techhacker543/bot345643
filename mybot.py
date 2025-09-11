@@ -93,26 +93,18 @@ def get_premium_inline_keyboard():
 
 
 
-import cloudscraper
+from playwright.sync_api import sync_playwright
 
-def get_voter_tree(cnic: str) -> str:
-    url = f"https://dbfather.42web.io/api.php?cnic={cnic}&i=1"
-    scraper = cloudscraper.create_scraper()
-    res = scraper.get(url)
+def get_voter_tree_browser(cnic):
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(f"https://dbfather.42web.io/api.php?cnic={cnic}&i=1")
+        page.wait_for_timeout(3000)  # wait for JS execution
+        content = page.content()
+        browser.close()
+        return content
 
-    try:
-        data = res.json()
-        family = data.get("family", [])
-        if not family:
-            return "❌ Data not found"
-
-        result = "👪 Family Tree:\n\n"
-        for i, member in enumerate(family, 1):
-            result += f"{i}. {member['name']} ({member['رشتہ']}) – CNIC: {member['cnic']} – Age: {member['age']}\n"
-        return result
-
-    except Exception:
-        return f"⚠️ Could not parse response.\nRaw:\n{res.text[:300]}"
 
 
 
@@ -394,6 +386,7 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
+
 
 
 
