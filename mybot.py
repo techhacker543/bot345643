@@ -91,20 +91,42 @@ def get_premium_inline_keyboard():
 
 
 
-from playwright.sync_api import sync_playwright
-import json
+import requests
 
-def fetch_voter_tree(cnic):
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
-        page.goto(f"https://dbfather.42web.io/api.php?cnic={cnic}")
-        page.wait_for_timeout(3000)  # wait for JS to run
-        content = page.inner_text("body")  # should now be JSON text
-        browser.close()
-        return json.loads(content)
+def get_voter_tree(cnic: str):
+    url = f"https://dbfather.42web.io/api.php?cnic={cnic}"
+    try:
+        res = requests.get(url, timeout=10)
+        res.raise_for_status()
+        data = res.json()
 
-print(fetch_voter_tree("1560281870082"))
+        if "error" in data:
+            return f"❌ {data['error']}"
+
+        family = data.get("family", [])
+        if not family:
+            return "❌ کوئی ڈیٹا نہیں ملا"
+
+        msg = "👨‍👩‍👧‍👦 خاندانی شجرہ:\n"
+        for i, member in enumerate(family, start=1):
+            msg += (
+                f"\n{i}. {member['name']} "
+                f"(CNIC: {member['cnic']}, عمر: {member['age']}, رشتہ: {member.get('رشتہ','-')})"
+            )
+
+        # Show address if present
+        for member in family:
+            if member.get("present_address") or member.get("permanent_address"):
+                msg += f"\n\n📍 پتہ: {member.get('present_address') or member.get('permanent_address')}"
+                break
+
+        return msg
+
+    except Exception as e:
+        return f"⚠️ Could not fetch data: {e}"
+
+# Example
+print(get_voter_tree("1560281870082"))
 
 
 
@@ -391,6 +413,7 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
+
 
 
 
