@@ -93,59 +93,35 @@ def get_premium_inline_keyboard():
 
 
 
+import asyncio
+from playwright.async_api import async_playwright
 
-from playwright.sync_api import sync_playwright
+async def get_voter_tree(cnic: str) -> str:
+    url = f"https://dbfather.42web.io/api.php?cnic={cnic}&i=1"
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True, args=["--no-sandbox"])
+            page = await browser.new_page()
+            await page.goto(url, timeout=60000, wait_until="networkidle")
 
-def get_voter_tree_browser(cnic: str) -> str:
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+            # Try to get JSON directly
+            content = await page.content()
 
-        url = f"https://dbfather.42web.io/api.php?cnic={cnic}&i=1"
-        page.goto(url)
+            if "data not found" in content.lower():
+                return "❌ No voter tree found for this CNIC."
 
-        try:
-            # Wait until either table OR error message appears
-            page.wait_for_selector("table, .error, body", timeout=20000)
+            # Extract JSON safely
+            pre = await page.evaluate("() => document.body.innerText")
+            await browser.close()
 
-            # If family table exists
-            if page.locator("table").count() > 0:
-                rows = page.query_selector_all("table tr")
-                family_data = []
-                for row in rows[1:]:
-                    cols = row.query_selector_all("td")
-                    if len(cols) >= 5:
-                        serial = cols[0].inner_text().strip()
-                        name = cols[1].inner_text().strip()
-                        cnic_val = cols[2].inner_text().strip()
-                        age = cols[3].inner_text().strip()
-                        relation = cols[4].inner_text().strip()
-                        family_data.append(f"{serial}. {name} – CNIC: {cnic_val} – Age: {age} – Relation: {relation}")
+            return f"✅ Voter Tree Data:\n{pre[:1000]}"  # limit to 1000 chars to avoid Telegram crash
+    except Exception as e:
+        return f"⚠️ Error fetching voter tree: {e}"
 
-                # Check for address under table
-                address_text = ""
-                if page.locator("#address").count() > 0:
-                    address_text = page.locator("#address").inner_text().strip()
+# wrapper for bot
+def fetch_tree(cnic: str) -> str:
+    return asyncio.run(get_voter_tree(cnic))
 
-                output = "✅ Voter Family Tree:\n\n" + "\n".join(family_data)
-                if address_text:
-                    output += f"\n\n{address_text}"
-
-                return output
-
-            # If error message exists
-            elif page.locator(".error").count() > 0:
-                return "❌ " + page.locator(".error").inner_text().strip()
-
-            else:
-                # fallback: maybe site blocked?
-                return "❌ No data received. Site may be blocking automated requests."
-
-        except Exception as e:
-            return f"❌ Failed to load data. Error: {str(e)}"
-
-        finally:
-            browser.close()
 
 
 
@@ -429,6 +405,7 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
+
 
 
 
