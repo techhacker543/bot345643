@@ -97,25 +97,25 @@ def get_premium_inline_keyboard():
 
 
 
+from playwright.async_api import async_playwright
 
-from playwright.sync_api import sync_playwright
-
-def get_voter_tree(cnic: str) -> str:
+async def get_voter_tree(cnic: str) -> str:
     try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
             url = f"https://dbfather.42web.io/api.php?cnic={cnic}&i=1"
-            
-            page.goto(url, timeout=60000)  # wait for page load
-            page.wait_for_timeout(3000)    # give JS time to run
-            
-            content = page.content()  # get full rendered HTML
-            
-            browser.close()
+
+            await page.goto(url, timeout=60000)
+            await page.wait_for_timeout(3000)  # wait for JS
+
+            content = await page.content()
+            await browser.close()
+
             return content
     except Exception as e:
         return f"⚠️ Could not fetch data: {e}"
+
 
 
 
@@ -403,6 +403,7 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
+
 
 
 
