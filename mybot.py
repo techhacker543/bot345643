@@ -95,15 +95,22 @@ def get_premium_inline_keyboard():
 
 from playwright.sync_api import sync_playwright
 
-def get_voter_tree_browser(cnic):
+def get_voter_tree_browser(cnic: str) -> str:
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         page.goto(f"https://dbfather.42web.io/api.php?cnic={cnic}&i=1")
-        page.wait_for_timeout(3000)  # wait for JS execution
-        content = page.content()
+        page.wait_for_timeout(4000)  # wait for JS to finish
+
+        # Get text instead of raw HTML
+        text_content = page.inner_text("body")
         browser.close()
-        return content
+
+        # Handle cases
+        if "data not found" in text_content.lower():
+            return "❌ Data not found for this CNIC."
+        else:
+            return f"✅ Voter Tree Data:\n\n{text_content}"
 
 
 
@@ -386,6 +393,7 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
+
 
 
 
