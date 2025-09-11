@@ -91,18 +91,21 @@ def get_premium_inline_keyboard():
 
 
 
-
 from playwright.sync_api import sync_playwright
+import json
 
 def fetch_voter_tree(cnic):
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         page.goto(f"https://dbfather.42web.io/api.php?cnic={cnic}")
-        page.wait_for_timeout(3000)  # wait for JS
-        content = page.content()
-        print(content)  # now parse JSON inside
+        page.wait_for_timeout(3000)  # wait for JS to run
+        content = page.inner_text("body")  # should now be JSON text
         browser.close()
+        return json.loads(content)
+
+print(fetch_voter_tree("1560281870082"))
+
 
 
 
@@ -388,6 +391,7 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
+
 
 
 
