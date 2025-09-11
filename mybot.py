@@ -20,9 +20,10 @@ import openpyxl
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment, Font, Border, Side, PatternFill
 import tempfile
+from playwright.async_api import async_playwright
 
 BOT_TOKEN = "7757762485:AAHY5BrJ58YpdW50lAwRUsTwahtRDrd1RyA"
-ADMIN_ID = 6550324099
+ADMIN_ID = 6550324099 
 
 user_state = {}
 
@@ -88,17 +89,6 @@ def get_premium_inline_keyboard():
     return InlineKeyboardMarkup(keyboard)
 
 # ====== Fetch Voter Tree ======
-
-
-
-
-
-
-
-
-
-from playwright.async_api import async_playwright
-
 async def get_voter_tree(cnic: str) -> str:
     try:
         async with async_playwright() as p:
@@ -107,33 +97,14 @@ async def get_voter_tree(cnic: str) -> str:
             url = f"https://dbfather.42web.io/api.php?cnic={cnic}&i=1"
 
             await page.goto(url, timeout=60000)
-            await page.wait_for_timeout(3000)  # wait for JS
+            await page.wait_for_timeout(2000)  # wait a bit for JS
 
-            content = await page.content()
+            content = await page.inner_text("body")  # only text
             await browser.close()
 
             return content
     except Exception as e:
         return f"⚠️ Could not fetch data: {e}"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 # ====== /start ======
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -268,11 +239,19 @@ async def menu_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_stats()
 
         await update.message.reply_text("🔍 Fetching Voter Tree... Please wait.")
-        result = get_voter_tree(text)
-        await update.message.reply_text(result)
+
+        result = await get_voter_tree(text)  # ✅ FIXED await
+
+        try:
+            data = json.loads(result)
+            pretty = json.dumps(data, indent=2, ensure_ascii=False)
+            await update.message.reply_text(f"✅ Result:\n<pre>{pretty}</pre>", parse_mode="HTML")
+        except:
+            await update.message.reply_text(result[:4000])  # raw output
+
         await send_developer_info(update)
 
-# ===== Developer info =====
+# ===== Developer info ======
 async def send_developer_info(update: Update):
     developer_msg = "🤖 Bot developed by Muazam Ali\n📞 WhatsApp: "
     await update.message.reply_text(developer_msg)
@@ -403,25 +382,3 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
