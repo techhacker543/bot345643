@@ -1,6 +1,5 @@
 requests
 cloudscraper
-requests-html
 beautifulsoup4
 python-telegram-bot==20.3
 openpyxl
