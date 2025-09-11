@@ -93,20 +93,27 @@ def get_premium_inline_keyboard():
 
 
 
-
-from requests_html import HTMLSession
+import cloudscraper
 
 def get_voter_tree(cnic: str) -> str:
-    session = HTMLSession()
     url = f"https://dbfather.42web.io/api.php?cnic={cnic}&i=1"
-    r = session.get(url)
-    r.html.render(timeout=20)  # executes JavaScript
+    scraper = cloudscraper.create_scraper()
+    res = scraper.get(url)
 
     try:
-        data = r.json()
-        return str(data)
-    except:
-        return r.text
+        data = res.json()
+        family = data.get("family", [])
+        if not family:
+            return "❌ Data not found"
+
+        result = "👪 Family Tree:\n\n"
+        for i, member in enumerate(family, 1):
+            result += f"{i}. {member['name']} ({member['رشتہ']}) – CNIC: {member['cnic']} – Age: {member['age']}\n"
+        return result
+
+    except Exception:
+        return f"⚠️ Could not parse response.\nRaw:\n{res.text[:300]}"
+
 
 
 
@@ -387,6 +394,7 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
+
 
 
 
