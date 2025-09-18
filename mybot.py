@@ -23,7 +23,7 @@ import tempfile
 from playwright.async_api import async_playwright
 
 BOT_TOKEN = "7757762485:AAHY5BrJ58YpdW50lAwRUsTwahtRDrd1RyA"
-ADMIN_ID = 6550324099 
+ADMIN_ID = 6550324099
 
 user_state = {}
 
@@ -142,7 +142,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Free Search options
     elif query.data == "search_number":
         user_state[chat_id] = ("free", "number")
-        await query.message.reply_text("📱 Please enter the mobile number (10 or 11 digits):", reply_markup=ReplyKeyboardRemove())
+        await query.message.reply_text("📱 Please enter the mobile number (with 92, e.g., 923001234567):", reply_markup=ReplyKeyboardRemove())
     elif query.data == "search_cnic":
         user_state[chat_id] = ("free", "cnic")
         await query.message.reply_text("🆔 Please enter the CNIC number (13 digits):", reply_markup=ReplyKeyboardRemove())
@@ -177,8 +177,8 @@ async def menu_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ===== Free Search =====
     if mode == "free":
         if search_type == "number":
-            if not text.isdigit() or len(text) not in [10, 11]:
-                await update.message.reply_text("❌ Invalid number. Enter 10 or 11 digits.")
+            if not text.isdigit() or not text.startswith("92"):
+                await update.message.reply_text("❌ Invalid number. Enter in format 92XXXXXXXXXX.")
                 return
         elif search_type == "cnic":
             if not text.isdigit() or len(text) != 13:
@@ -189,15 +189,15 @@ async def menu_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         users_data[user_id]["searches"].append({"type": search_type, "query": text})
         save_stats()
 
-                await update.message.reply_text("🔍 Searching (Free)... Please wait.")
+        await update.message.reply_text("🔍 Searching (Free)... Please wait.")
 
+        # 🔄 Changed: Fetch from pakistandatabase.com
         url = "https://pakistandatabase.com/index.php"
         payload = {"search_query": text}
         try:
             response = requests.post(url, data=payload)
             soup = BeautifulSoup(response.text, "html.parser")
 
-            # Find results table
             table = soup.find("table", class_="api-response")
             if not table:
                 await update.message.reply_text("⚠ No result found.")
@@ -223,7 +223,6 @@ async def menu_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"❌ Error: {e}")
             await send_developer_info(update)
 
-
     # ===== Premium Search =====
     elif mode == "premium" and search_type == "votertree":
         if not text.isdigit() or len(text) != 13:
@@ -236,14 +235,14 @@ async def menu_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text("🔍 Fetching Voter Tree... Please wait.")
 
-        result = await get_voter_tree(text)  # ✅ FIXED await
+        result = await get_voter_tree(text)
 
         try:
             data = json.loads(result)
             pretty = json.dumps(data, indent=2, ensure_ascii=False)
             await update.message.reply_text(f"✅ Result:\n<pre>{pretty}</pre>", parse_mode="HTML")
         except:
-            await update.message.reply_text(result[:4000])  # raw output
+            await update.message.reply_text(result[:4000])
 
         await send_developer_info(update)
 
@@ -378,4 +377,3 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
-
