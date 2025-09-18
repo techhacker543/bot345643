@@ -189,37 +189,32 @@ async def menu_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         users_data[user_id]["searches"].append({"type": search_type, "query": text})
         save_stats()
 
-        await update.message.reply_text("🔍 Searching (Free)... Please wait.")
+                await update.message.reply_text("🔍 Searching (Free)... Please wait.")
 
-        url = "https://minahalsimdata.com.pk/sim-info/"
-        payload = {"searchinfo": text}
+        url = "https://pakistandatabase.com/index.php"
+        payload = {"search_query": text}
         try:
             response = requests.post(url, data=payload)
             soup = BeautifulSoup(response.text, "html.parser")
-            result_containers = soup.find_all("div", class_="resultcontainer")
 
-            if not result_containers:
+            # Find results table
+            table = soup.find("table", class_="api-response")
+            if not table:
                 await update.message.reply_text("⚠ No result found.")
                 await send_developer_info(update)
                 return
 
+            rows = table.find("tbody").find_all("tr")
             result_text = ""
-            for container in result_containers:
-                rows = container.find_all("div", class_="row")
-                record = {}
-                for row in rows:
-                    head = row.find("span", class_="detailshead")
-                    value = row.find("span", class_="details")
-                    if head and value:
-                        record[head.get_text(strip=True).replace(":", "")] = value.get_text(strip=True)
-
-                result_text += (
-                    f"👤 Name: {record.get('Name', 'N/A')}\n"
-                    f"📱 Mobile: {record.get('Mobile', 'N/A')}\n"
-                    f"🌍 Country: {record.get('Country', 'N/A')}\n"
-                    f"🆔 CNIC: {record.get('CNIC', 'N/A')}\n"
-                    f"🏠 Address: {record.get('Address', 'N/A')}\n\n"
-                )
+            for row in rows:
+                cols = [col.get_text(strip=True) for col in row.find_all("td")]
+                if len(cols) >= 4:
+                    result_text += (
+                        f"📱 Mobile: {cols[0]}\n"
+                        f"👤 Name: {cols[1]}\n"
+                        f"🆔 CNIC: {cols[2]}\n"
+                        f"🏠 Address: {cols[3]}\n\n"
+                    )
 
             await update.message.reply_text(result_text.strip() or "⚠ No data found.")
             await send_developer_info(update)
@@ -227,6 +222,7 @@ async def menu_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await update.message.reply_text(f"❌ Error: {e}")
             await send_developer_info(update)
+
 
     # ===== Premium Search =====
     elif mode == "premium" and search_type == "votertree":
@@ -382,3 +378,4 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_choice))
     print("🤖 Bot is running...")
     app.run_polling()
+
