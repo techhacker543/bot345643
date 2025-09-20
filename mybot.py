@@ -20,10 +20,10 @@ import openpyxl
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment, Font, Border, Side, PatternFill
 import tempfile
-from playwright.async_api import async_playwright
+import asyncio
 
 BOT_TOKEN = "7757762485:AAHY5BrJ58YpdW50lAwRUsTwahtRDrd1RyA"
-ADMIN_ID = 6550324099
+ADMIN_ID = 6550324099 
 
 user_state = {}
 
@@ -88,21 +88,51 @@ def get_premium_inline_keyboard():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# ====== Fetch Voter Tree ======
+# ====== Fetch Voter Tree (dbfather.42web.io) ======
 async def get_voter_tree(cnic: str) -> str:
+    """
+    Fetches HTML from dbfather index and parses the results table to return a formatted string.
+    Runs blocking requests in a thread to avoid blocking the event loop.
+    """
     try:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
-            url = f"https://dbfather.42web.io/api.php?cnic={cnic}&i=1"
+        def fetch_html():
+            url = "https://dbfather.42web.io/index.php"
+            payload = {"cnicInput": cnic}
+            resp = requests.post(url, data=payload, timeout=30)
+            return resp.text
 
-            await page.goto(url, timeout=60000)
-            await page.wait_for_timeout(2000)  # wait a bit for JS
+        html = await asyncio.to_thread(fetch_html)
+        soup = BeautifulSoup(html, "html.parser")
 
-            content = await page.inner_text("body")  # only text
-            await browser.close()
+        table_div = soup.find("div", id="resultsTable")
+        if not table_div:
+            return "⚠️ No data found."
 
-            return content
+        table = table_div.find("table")
+        if not table:
+            return "⚠️ No result table found."
+
+        tbody = table.find("tbody")
+        if not tbody:
+            return "⚠️ No family members found."
+
+        rows = tbody.find_all("tr")
+        if not rows:
+            return "⚠️ No family members found."
+
+        result_text = "👨‍👩‍👧‍👦 Family Tree Results:\n\n"
+        for row in rows:
+            cols = [td.get_text(strip=True) for td in row.find_all("td")]
+            # expects: S.No, Name, CNIC, Age, Relation
+            if len(cols) >= 5:
+                result_text += (
+                    f"👤 Name: {cols[1]}\n"
+                    f"🆔 CNIC: {cols[2]}\n"
+                    f"🎂 Age: {cols[3]}\n"
+                    f"👥 Relation: {cols[4]}\n\n"
+                )
+        return result_text.strip()
+
     except Exception as e:
         return f"⚠️ Could not fetch data: {e}"
 
@@ -177,8 +207,9 @@ async def menu_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ===== Free Search =====
     if mode == "free":
         if search_type == "number":
-            if not text.isdigit() or not text.startswith("92"):
-                await update.message.reply_text("❌ Invalid number. Enter in format 92XXXXXXXXXX.")
+            # require country code 92 + 10 digits => length 12
+            if not text.isdigit() or not text.startswith("92") or len(text) != 12:
+                await update.message.reply_text("❌ Invalid number. Enter in format 92XXXXXXXXXX (e.g., 923001234567).")
                 return
         elif search_type == "cnic":
             if not text.isdigit() or len(text) != 13:
@@ -192,11 +223,15 @@ async def menu_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("🔍 Searching (Free)... Please wait.")
 
         # 🔄 Changed: Fetch from pakistandatabase.com
-        url = "https://pakistandatabase.com/index.php"
-        payload = {"search_query": text}
         try:
-            response = requests.post(url, data=payload)
-            soup = BeautifulSoup(response.text, "html.parser")
+            def fetch_free():
+                url = "https://pakistandatabase.com/index.php"
+                payload = {"search_query": text}
+                resp = requests.post(url, data=payload, timeout=30)
+                return resp.text
+
+            html = await asyncio.to_thread(fetch_free)
+            soup = BeautifulSoup(html, "html.parser")
 
             table = soup.find("table", class_="api-response")
             if not table:
@@ -204,7 +239,13 @@ async def menu_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await send_developer_info(update)
                 return
 
-            rows = table.find("tbody").find_all("tr")
+            tbody = table.find("tbody")
+            if not tbody:
+                await update.message.reply_text("⚠ No result found.")
+                await send_developer_info(update)
+                return
+
+            rows = tbody.find_all("tr")
             result_text = ""
             for row in rows:
                 cols = [col.get_text(strip=True) for col in row.find_all("td")]
@@ -237,11 +278,12 @@ async def menu_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         result = await get_voter_tree(text)
 
+        # result is a formatted string already
         try:
-            data = json.loads(result)
-            pretty = json.dumps(data, indent=2, ensure_ascii=False)
-            await update.message.reply_text(f"✅ Result:\n<pre>{pretty}</pre>", parse_mode="HTML")
-        except:
+            # try to send as markdown-safe text (we used plain chars so ok)
+            await update.message.reply_text(result[:4000])
+        except Exception:
+            # fallback raw
             await update.message.reply_text(result[:4000])
 
         await send_developer_info(update)
